@@ -51,7 +51,6 @@ export default function Home() {
   const [error, setError] = useState("");
   const resultRef = useRef<HTMLDivElement>(null);
 
-  // Browse state
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [documents, setDocuments] = useState<DocInfo[]>([]);
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
@@ -60,7 +59,6 @@ export default function Home() {
   const [selectedCtGroup, setSelectedCtGroup] = useState("B");
   const [fetchingDoc, setFetchingDoc] = useState(false);
 
-  // Load sessions on mount and when ctGroup changes
   useEffect(() => {
     loadSessions();
   }, [selectedCtGroup]);
@@ -73,9 +71,7 @@ export default function Home() {
     try {
       const res = await fetch(`/api/fetch-meetings?action=sessions&csDaesoo=12&ctGroup=${selectedCtGroup}`);
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setSessions(data);
-      }
+      if (Array.isArray(data)) setSessions(data);
     } catch {
       setError("회기 목록을 불러올 수 없습니다.");
     } finally {
@@ -90,9 +86,7 @@ export default function Home() {
     try {
       const res = await fetch(`/api/fetch-meetings?action=documents&csSession=${csSession}&ctGroup=${selectedCtGroup}`);
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setDocuments(data);
-      }
+      if (Array.isArray(data)) setDocuments(data);
     } catch {
       setError("회의록 목록을 불러올 수 없습니다.");
     } finally {
@@ -165,6 +159,18 @@ export default function Home() {
     }
   };
 
+  const tabs = [
+    { key: "browse", label: "회의록 검색", icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    )},
+    { key: "paste", label: "직접 입력", icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+    )},
+    { key: "url", label: "URL 입력", icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    )},
+  ];
+
   const ctGroupOptions = [
     { value: "B", label: "본회의" },
     { value: "S", label: "상임위원회" },
@@ -172,96 +178,118 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 glass">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 tracking-tight">회의록 AI 분석</h1>
+              <p className="text-[11px] text-slate-400 font-medium">전북특별자치도의회</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-stone-900 tracking-tight">회의록 AI 분석</h1>
-            <p className="text-xs text-stone-500">전북특별자치도의회 교육위원회</p>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
+            <span className="text-[11px] font-semibold text-emerald-700">AI 분석 가능</span>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-        <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-          {/* Tabs */}
-          <div className="flex border-b border-stone-200">
-            {([["browse", "회의록 검색"], ["paste", "텍스트 붙여넣기"], ["url", "URL 입력"]] as const).map(([m, label]) => (
-              <button key={m} onClick={() => setMode(m as "browse" | "paste" | "url")}
-                className={`flex-1 py-3.5 text-sm font-medium transition-colors ${mode === m ? "text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50" : "text-stone-500 hover:text-stone-700 hover:bg-stone-50"}`}>
-                {label}
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        {/* Input Card */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 overflow-hidden">
+          {/* Tab Bar */}
+          <div className="flex bg-slate-50/80 border-b border-slate-200/80 p-1.5 gap-1">
+            {tabs.map(({ key, label, icon }) => (
+              <button key={key} onClick={() => setMode(key as "browse" | "paste" | "url")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
+                  ${mode === key
+                    ? "bg-white text-blue-700 shadow-sm border border-slate-200/80"
+                    : "text-slate-400 hover:text-slate-600 hover:bg-white/50"}`}>
+                {icon}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
 
-          <div className="p-5">
+          <div className="p-6">
             {/* Browse Mode */}
             {mode === "browse" && (
-              <div className="space-y-4">
-                {/* Category Filter */}
+              <div className="space-y-5 animate-in">
+                {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-2">회의 종류</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">회의 종류</label>
                   <div className="flex gap-2">
                     {ctGroupOptions.map((opt) => (
                       <button key={opt.value} onClick={() => setSelectedCtGroup(opt.value)}
-                        className={`px-4 py-2 text-sm rounded-lg border transition-colors ${selectedCtGroup === opt.value
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-stone-600 border-stone-300 hover:bg-stone-50"}`}>
+                        className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200
+                          ${selectedCtGroup === opt.value
+                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/25"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"}`}>
                         {opt.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Sessions List */}
+                {/* Sessions */}
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-2">
-                    회기 선택 {loadingSessions && <span className="text-stone-400">(불러오는 중...)</span>}
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                    회기 선택
+                    {loadingSessions && <span className="ml-2 text-blue-500 normal-case animate-pulse-soft">불러오는 중...</span>}
                   </label>
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-stone-200 rounded-lg bg-stone-50">
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scroll p-3 bg-slate-50 rounded-xl border border-slate-200/80">
                     {sessions.length === 0 && !loadingSessions && (
-                      <p className="text-sm text-stone-400 p-2">회기 목록이 없습니다.</p>
+                      <p className="text-sm text-slate-400 p-2">회기 목록이 없습니다.</p>
                     )}
                     {sessions.map((s) => (
                       <button key={s.csNum} onClick={() => loadDocuments(s.csNum)}
-                        className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${selectedSession === s.csNum
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-stone-600 border-stone-300 hover:bg-indigo-50"}`}>
-                        {s.csNum > 999
-                          ? `${s.csNum}년도`
-                          : `제${s.csNum}회`}
-                        <span className="ml-1 opacity-70">({s.csSdate.substring(0, 4)})</span>
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150
+                          ${selectedSession === s.csNum
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600"}`}>
+                        {s.csNum > 999 ? `${s.csNum}년도` : `${s.csNum}회`}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Documents List */}
+                {/* Documents */}
                 {selectedSession !== null && (
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-2">
-                      회의록 목록 {loadingDocs && <span className="text-stone-400">(불러오는 중...)</span>}
+                  <div className="animate-in">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                      회의록 목록
+                      {loadingDocs && <span className="ml-2 text-blue-500 normal-case animate-pulse-soft">불러오는 중...</span>}
                     </label>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <div className="space-y-2 max-h-72 overflow-y-auto custom-scroll">
                       {documents.length === 0 && !loadingDocs && (
-                        <p className="text-sm text-stone-400 p-3 text-center">회의록이 없습니다.</p>
+                        <p className="text-sm text-slate-400 p-4 text-center">회의록이 없습니다.</p>
                       )}
                       {documents.map((doc) => {
                         const label = doc.cdChasoo !== "0" ? `제${doc.cdChasoo}차` : "";
                         const ritual = doc.cdRitual > 0 ? ` ${doc.cdRitualNm}` : "";
-                        const imsi = doc.cdImsi === "Y" ? " [임시회의록]" : "";
+                        const imsi = doc.cdImsi === "Y" ? " [임시]" : "";
                         return (
                           <button key={doc.cdUid} onClick={() => selectDocument(doc)} disabled={fetchingDoc}
-                            className="w-full text-left px-4 py-3 border border-stone-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-colors disabled:opacity-50">
+                            className="group w-full text-left px-4 py-3.5 bg-white border border-slate-200/80 rounded-xl hover:border-blue-400 hover:shadow-md hover:shadow-blue-100 transition-all duration-200 disabled:opacity-40">
                             <div className="flex items-center justify-between">
-                              <div>
-                                <span className="text-sm font-medium text-stone-800">{doc.ctNm}</span>
-                                <span className="text-sm text-stone-600 ml-2">{label}{ritual}{imsi}</span>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
+                                  ${doc.ctGroup === "B" ? "bg-blue-100 text-blue-700" : doc.ctGroup === "S" ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
+                                  {doc.cdChasoo !== "0" ? doc.cdChasoo : "-"}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">{doc.ctNm}</p>
+                                  <p className="text-xs text-slate-400 mt-0.5">{label}{ritual}{imsi}</p>
+                                </div>
                               </div>
-                              <span className="text-xs text-stone-400">{doc.cdDate}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-slate-400 font-medium">{doc.cdDate}</span>
+                                <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                              </div>
                             </div>
                           </button>
                         );
@@ -271,9 +299,11 @@ export default function Home() {
                 )}
 
                 {fetchingDoc && (
-                  <div className="flex items-center justify-center py-4 text-sm text-indigo-600">
-                    <svg className="animate-spin w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    회의록 텍스트를 가져오는 중...
+                  <div className="flex items-center justify-center py-6 animate-in">
+                    <div className="flex items-center gap-3 px-5 py-3 bg-blue-50 rounded-xl">
+                      <svg className="animate-spin w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      <span className="text-sm font-medium text-blue-700">회의록 텍스트를 가져오는 중...</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -281,46 +311,50 @@ export default function Home() {
 
             {/* URL Mode */}
             {mode === "url" && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-stone-700 mb-2">전자회의록 페이지 URL</label>
+              <div className="mb-4 animate-in">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">전자회의록 URL</label>
                 <div className="flex gap-2">
                   <input type="url" value={url} onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://r.jbstatecouncil.jeonbuk.kr/..."
-                    className="flex-1 px-4 py-2.5 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-stone-400"/>
+                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white placeholder:text-slate-300 transition-all"/>
                   <button onClick={fetchFromUrl} disabled={fetchingUrl || !url.trim()}
-                    className="px-5 py-2.5 bg-stone-800 text-white text-sm font-medium rounded-lg hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
-                    {fetchingUrl ? "가져오는 중..." : "텍스트 가져오기"}
+                    className="px-6 py-3 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 disabled:opacity-30 transition-all whitespace-nowrap">
+                    {fetchingUrl ? "가져오는 중..." : "가져오기"}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-stone-400">전자회의록 시스템의 회의록 상세 페이지 URL을 입력하세요</p>
               </div>
             )}
 
-            {/* Text area (shown in paste and url modes, or after browse selection) */}
+            {/* Text Area */}
             {(mode === "paste" || mode === "url") && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-stone-700">
-                    {mode === "url" ? "가져온 회의록 텍스트" : "회의록 텍스트"}
+              <div className="animate-in">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {mode === "url" ? "가져온 텍스트" : "회의록 텍스트"}
                   </label>
-                  <span className={`text-xs ${text.length > 500 ? "text-green-600" : "text-stone-400"}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${text.length > 500 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
                     {text.length.toLocaleString()}자
                   </span>
                 </div>
-                <textarea value={text} onChange={(e) => setText(e.target.value)} rows={12}
+                <textarea value={text} onChange={(e) => setText(e.target.value)} rows={14}
                   placeholder={mode === "paste"
-                    ? "전자회의록에서 회의록 텍스트를 복사하여 붙여넣으세요.\n\n(Ctrl+A -> Ctrl+C로 전체 선택 후 복사)"
-                    : "위에서 URL을 입력하고 '텍스트 가져오기' 버튼을 누르면 여기에 텍스트가 표시됩니다."}
-                  className="w-full px-4 py-3 border border-stone-300 rounded-lg text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-stone-400 resize-y font-mono"/>
+                    ? "전자회의록에서 회의록 텍스트를 복사하여 붙여넣으세요.\n\n위 '회의록 검색' 탭에서 자동으로 가져올 수도 있습니다."
+                    : "위에서 URL을 입력하고 '가져오기' 버튼을 누르면 여기에 텍스트가 표시됩니다."}
+                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white placeholder:text-slate-300 resize-y font-mono transition-all"/>
               </div>
             )}
 
+            {/* Error */}
             {error && (
-              <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+              <div className="mt-4 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200/80 rounded-xl animate-in">
+                <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
             )}
 
+            {/* Analyze Button */}
             <button onClick={analyze} disabled={loading || !text.trim()}
-              className="mt-4 w-full py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm">
+              className="mt-5 w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 text-sm">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -333,54 +367,74 @@ export default function Home() {
 
         {/* Results */}
         {result && (
-          <div ref={resultRef} className="space-y-5 animate-in fade-in">
-            {/* Header */}
-            <div className="bg-white rounded-xl border border-stone-200 p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-stone-900">{result.title}</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {result.date && <span className="px-2.5 py-1 bg-stone-100 text-stone-600 rounded-md text-xs font-medium">{result.date}</span>}
-                {result.committee && <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">{result.committee}</span>}
+          <div ref={resultRef} className="space-y-5 animate-slide-up">
+            {/* Header Card */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 leading-tight">{result.title}</h2>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {result.date && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {result.date}
+                      </span>
+                    )}
+                    {result.committee && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        {result.committee}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
+
               {result.overall_summary && (
-                <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs font-semibold text-amber-800 mb-1">전체 요약</p>
+                <div className="mt-5 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-xl">
+                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">전체 요약</p>
                   <p className="text-sm text-amber-900 leading-relaxed">{result.overall_summary}</p>
                 </div>
               )}
+
               {result.attendees?.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-semibold text-stone-500 mb-2">참석자</p>
+                <div className="mt-5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">참석자</p>
                   <div className="flex flex-wrap gap-1.5">
                     {result.attendees.map((a, i) => (
-                      <span key={i} className="px-2 py-0.5 bg-stone-100 text-stone-600 rounded text-xs">{a}</span>
+                      <span key={i} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">{a}</span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Agendas */}
+            {/* Agenda Cards */}
             {result.agendas?.map((agenda, i) => (
-              <div key={i} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50 flex items-center gap-3">
-                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                  <h3 className="font-semibold text-stone-900 text-sm leading-snug">{agenda.title}</h3>
+              <div key={i} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-in" style={{ animationDelay: `${i * 80}ms` }}>
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-xs font-bold flex items-center justify-center shadow-sm">{i + 1}</span>
+                  <h3 className="font-bold text-slate-900 text-sm leading-snug">{agenda.title}</h3>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-5">
                   <div>
-                    <p className="text-xs font-semibold text-stone-500 mb-1">안건 요약</p>
-                    <p className="text-sm text-stone-700 leading-relaxed">{agenda.summary}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">안건 요약</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{agenda.summary}</p>
                   </div>
+
                   {agenda.speakers?.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-stone-500 mb-2">주요 발언</p>
-                      <div className="space-y-2.5">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">주요 발언</p>
+                      <div className="space-y-3">
                         {agenda.speakers.map((s, j) => (
-                          <div key={j} className="pl-4 border-l-2 border-indigo-200">
-                            <p className="text-sm font-semibold text-indigo-700">{s.name}</p>
-                            <ul className="mt-1 space-y-0.5">
+                          <div key={j} className="pl-4 border-l-[3px] border-blue-400 py-1">
+                            <p className="text-sm font-bold text-blue-700">{s.name}</p>
+                            <ul className="mt-1.5 space-y-1">
                               {s.key_points.map((p, k) => (
-                                <li key={k} className="text-sm text-stone-600 leading-relaxed">· {p}</li>
+                                <li key={k} className="text-sm text-slate-600 leading-relaxed flex gap-2">
+                                  <span className="text-blue-400 mt-0.5 flex-shrink-0">-</span>
+                                  <span>{p}</span>
+                                </li>
                               ))}
                             </ul>
                           </div>
@@ -388,38 +442,44 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+
                   {agenda.decision && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-xs font-semibold text-green-800 mb-0.5">의결 사항</p>
-                      <p className="text-sm text-green-800">{agenda.decision}</p>
+                    <div className="p-4 bg-emerald-50 border border-emerald-200/60 rounded-xl">
+                      <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1.5">의결 사항</p>
+                      <p className="text-sm text-emerald-800 leading-relaxed">{agenda.decision}</p>
                     </div>
                   )}
+
                   {agenda.follow_up && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-xs font-semibold text-blue-800 mb-0.5">후속 조치</p>
-                      <p className="text-sm text-blue-800">{agenda.follow_up}</p>
+                    <div className="p-4 bg-sky-50 border border-sky-200/60 rounded-xl">
+                      <p className="text-xs font-bold text-sky-700 uppercase tracking-wider mb-1.5">후속 조치</p>
+                      <p className="text-sm text-sky-800 leading-relaxed">{agenda.follow_up}</p>
                     </div>
                   )}
                 </div>
               </div>
             ))}
 
+            {/* Export */}
             <div className="flex justify-end">
               <button onClick={() => {
                 const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
                 const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
                 a.download = `회의록분석_${result.date || "결과"}.json`; a.click();
-              }} className="px-4 py-2 text-sm text-stone-600 border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">
-                분석 결과 내보내기 (JSON)
+              }} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                결과 내보내기 (JSON)
               </button>
             </div>
           </div>
         )}
       </main>
 
-      <footer className="border-t border-stone-200 mt-12">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <p className="text-xs text-stone-400 text-center">전북특별자치도의회 교육위원회 · AI 기반 회의록 분석 시스템 (PoC)</p>
+      {/* Footer */}
+      <footer className="mt-auto border-t border-slate-200/60">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+          <p className="text-xs text-slate-400 font-medium">전북특별자치도의회 · AI 기반 회의록 분석 시스템</p>
+          <p className="text-[10px] text-slate-300">Powered by Gemini</p>
         </div>
       </footer>
     </div>
