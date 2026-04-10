@@ -68,15 +68,13 @@ type SearchResult = {
 };
 
 export default function Home() {
-  const [mode, setMode] = useState<"browse" | "paste" | "url">("browse");
   const [browseTab, setBrowseTab] = useState<"session" | "keyword" | "member">("session");
   const [text, setText] = useState("");
-  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fetchingUrl, setFetchingUrl] = useState(false);
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [error, setError] = useState("");
   const resultRef = useRef<HTMLDivElement>(null);
+  const [selectedDocName, setSelectedDocName] = useState("");
 
   // Session browse state
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -163,6 +161,9 @@ export default function Home() {
     const viewerUrl = `https://r.jbstatecouncil.jeonbuk.kr/assem/viewer.do?cdUid=${doc.cdUid}`;
     setFetchingDoc(true);
     setError("");
+    setResult(null);
+    const label = doc.cdChasoo !== "0" ? `제${doc.cdChasoo}차` : "";
+    setSelectedDocName(`${doc.ctNm} ${label} (${doc.cdDate})`);
     try {
       const res = await fetch("/api/fetch-url", {
         method: "POST",
@@ -172,7 +173,6 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "회의록 텍스트를 가져올 수 없습니다");
       setText(data.text);
-      setMode("paste");
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -250,30 +250,10 @@ export default function Home() {
     window.open(`https://r.jbstatecouncil.jeonbuk.kr/assem/viewer.do?cdCode=${cdCode}#bill${ciNum}`, "_blank");
   };
 
-  const fetchFromUrl = async () => {
-    if (!url.trim()) return;
-    setFetchingUrl(true);
-    setError("");
-    try {
-      const res = await fetch("/api/fetch-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "URL에서 텍스트를 가져올 수 없습니다");
-      setText(data.text);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setFetchingUrl(false);
-    }
-  };
-
   const analyze = async () => {
     const input = text.trim();
-    if (!input) { setError("회의록 텍스트를 입력해 주세요."); return; }
-    if (input.length < 100) { setError("텍스트가 너무 짧습니다. 회의록 전문을 입력해 주세요."); return; }
+    if (!input) { setError("회의록을 먼저 선택해주세요."); return; }
+    if (input.length < 100) { setError("텍스트가 너무 짧습니다."); return; }
     setLoading(true);
     setError("");
     setResult(null);
@@ -293,18 +273,6 @@ export default function Home() {
       setLoading(false);
     }
   };
-
-  const tabs = [
-    { key: "browse", label: "회의록 검색", icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    )},
-    { key: "paste", label: "직접 입력", icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-    )},
-    { key: "url", label: "URL 입력", icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-    )},
-  ];
 
   const ctGroupOptions = [
     { value: "B", label: "본회의" },
@@ -336,24 +304,7 @@ export default function Home() {
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         {/* Input Card */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 overflow-hidden">
-          {/* Tab Bar */}
-          <div className="flex bg-slate-50/80 border-b border-slate-200/80 p-1.5 gap-1">
-            {tabs.map(({ key, label, icon }) => (
-              <button key={key} onClick={() => setMode(key as "browse" | "paste" | "url")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
-                  ${mode === key
-                    ? "bg-white text-blue-700 shadow-sm border border-slate-200/80"
-                    : "text-slate-400 hover:text-slate-600 hover:bg-white/50"}`}>
-                {icon}
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="p-6">
-            {/* Browse Mode */}
-            {mode === "browse" && (
-              <div className="space-y-5 animate-in">
+          <div className="p-6 space-y-5">
                 {/* Browse Sub-tabs */}
                 <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
                   {([["session", "회기별"], ["keyword", "키워드 검색"], ["member", "의원별"]] as const).map(([key, label]) => (
@@ -535,43 +486,15 @@ export default function Home() {
                   </div>
                 )}
                 </>}
-              </div>
-            )}
 
-            {/* URL Mode */}
-            {mode === "url" && (
-              <div className="mb-4 animate-in">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">전자회의록 URL</label>
-                <div className="flex gap-2">
-                  <input type="url" value={url} onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://r.jbstatecouncil.jeonbuk.kr/..."
-                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white placeholder:text-slate-300 transition-all"/>
-                  <button onClick={fetchFromUrl} disabled={fetchingUrl || !url.trim()}
-                    className="px-6 py-3 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 disabled:opacity-30 transition-all whitespace-nowrap">
-                    {fetchingUrl ? "가져오는 중..." : "가져오기"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Text Area */}
-            {(mode === "paste" || mode === "url") && (
-              <div className="animate-in">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    {mode === "url" ? "가져온 텍스트" : "회의록 텍스트"}
-                  </label>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${text.length > 500 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
-                    {text.length.toLocaleString()}자
-                  </span>
-                </div>
-                <textarea value={text} onChange={(e) => setText(e.target.value)} rows={14}
-                  placeholder={mode === "paste"
-                    ? "전자회의록에서 회의록 텍스트를 복사하여 붙여넣으세요.\n\n위 '회의록 검색' 탭에서 자동으로 가져올 수도 있습니다."
-                    : "위에서 URL을 입력하고 '가져오기' 버튼을 누르면 여기에 텍스트가 표시됩니다."}
-                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white placeholder:text-slate-300 resize-y font-mono transition-all"/>
-              </div>
-            )}
+                {/* Selected doc info */}
+                {selectedDocName && text && (
+                  <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200/60 rounded-xl animate-in">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-blue-600" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span className="text-sm font-semibold text-blue-700">{selectedDocName}</span>
+                    <span className="text-xs text-blue-500 ml-auto">{text.length.toLocaleString()}자</span>
+                  </div>
+                )}
 
             {/* Attendance */}
             {attendance && (
@@ -618,24 +541,24 @@ export default function Home() {
               </div>
             )}
 
-            {/* Error */}
-            {error && (
-              <div className="mt-4 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200/80 rounded-xl animate-in">
-                <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
+              {/* Error */}
+              {error && (
+                <div className="mt-4 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200/80 rounded-xl animate-in">
+                  <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
 
-            {/* Analyze Button */}
-            <button onClick={analyze} disabled={loading || !text.trim()}
-              className="mt-5 w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 text-sm">
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                  AI가 회의록을 분석하고 있습니다...
-                </span>
-              ) : "AI 분석 시작"}
-            </button>
+              {/* Analyze Button */}
+              <button onClick={analyze} disabled={loading || !text.trim()}
+                className="mt-5 w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 text-sm">
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    AI가 회의록을 분석하고 있습니다...
+                  </span>
+                ) : "AI 분석 시작"}
+              </button>
           </div>
         </div>
 
