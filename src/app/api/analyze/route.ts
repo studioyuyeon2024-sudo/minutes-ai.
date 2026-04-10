@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: NextRequest) {
   try {
     const { text } = await req.json();
     if (!text || text.trim().length < 100) {
       return NextResponse.json({ error: "텍스트가 너무 짧습니다." }, { status: 400 });
     }
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // Truncate to ~60k chars to stay within token limits
     const truncated = text.slice(0, 60000);
