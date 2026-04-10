@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 type SummaryResult = {
   title: string;
@@ -17,8 +17,32 @@ type SummaryResult = {
   overall_summary: string;
 };
 
+type SessionInfo = {
+  csNum: number;
+  csSdate: string;
+  csTypeNm: string;
+  cnt: number;
+  bCnt: number;
+  sCnt: number;
+};
+
+type DocInfo = {
+  cdUid: number;
+  cdCode: string;
+  cdChasoo: string;
+  cdDate: string;
+  cdImsi: string;
+  ctNm: string;
+  ctGroup: string;
+  cdRitual: number;
+  cdRitualNm: string;
+  cdPgamsa: string;
+  itemCnt: number;
+  cvUid: string;
+};
+
 export default function Home() {
-  const [mode, setMode] = useState<"paste" | "url">("paste");
+  const [mode, setMode] = useState<"browse" | "paste" | "url">("browse");
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +50,76 @@ export default function Home() {
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [error, setError] = useState("");
   const resultRef = useRef<HTMLDivElement>(null);
+
+  // Browse state
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [documents, setDocuments] = useState<DocInfo[]>([]);
+  const [selectedSession, setSelectedSession] = useState<number | null>(null);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [selectedCtGroup, setSelectedCtGroup] = useState("B");
+  const [fetchingDoc, setFetchingDoc] = useState(false);
+
+  // Load sessions on mount and when ctGroup changes
+  useEffect(() => {
+    loadSessions();
+  }, [selectedCtGroup]);
+
+  const loadSessions = async () => {
+    setLoadingSessions(true);
+    setSessions([]);
+    setDocuments([]);
+    setSelectedSession(null);
+    try {
+      const res = await fetch(`/api/fetch-meetings?action=sessions&csDaesoo=12&ctGroup=${selectedCtGroup}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setSessions(data);
+      }
+    } catch {
+      setError("회기 목록을 불러올 수 없습니다.");
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const loadDocuments = async (csSession: number) => {
+    setSelectedSession(csSession);
+    setLoadingDocs(true);
+    setDocuments([]);
+    try {
+      const res = await fetch(`/api/fetch-meetings?action=documents&csSession=${csSession}&ctGroup=${selectedCtGroup}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setDocuments(data);
+      }
+    } catch {
+      setError("회의록 목록을 불러올 수 없습니다.");
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const selectDocument = async (doc: DocInfo) => {
+    const viewerUrl = `https://r.jbstatecouncil.jeonbuk.kr/assem/viewer.do?cdUid=${doc.cdUid}`;
+    setFetchingDoc(true);
+    setError("");
+    try {
+      const res = await fetch("/api/fetch-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: viewerUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "회의록 텍스트를 가져올 수 없습니다");
+      setText(data.text);
+      setMode("paste");
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setFetchingDoc(false);
+    }
+  };
 
   const fetchFromUrl = async () => {
     if (!url.trim()) return;
@@ -71,6 +165,12 @@ export default function Home() {
     }
   };
 
+  const ctGroupOptions = [
+    { value: "B", label: "본회의" },
+    { value: "S", label: "상임위원회" },
+    { value: "T", label: "특별위원회" },
+  ];
+
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="border-b border-stone-200 bg-white">
@@ -89,15 +189,97 @@ export default function Home() {
         <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
           {/* Tabs */}
           <div className="flex border-b border-stone-200">
-            {(["paste", "url"] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)}
+            {([["browse", "회의록 검색"], ["paste", "텍스트 붙여넣기"], ["url", "URL 입력"]] as const).map(([m, label]) => (
+              <button key={m} onClick={() => setMode(m as "browse" | "paste" | "url")}
                 className={`flex-1 py-3.5 text-sm font-medium transition-colors ${mode === m ? "text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50" : "text-stone-500 hover:text-stone-700 hover:bg-stone-50"}`}>
-                {m === "paste" ? "텍스트 붙여넣기" : "전자회의록 URL"}
+                {label}
               </button>
             ))}
           </div>
 
           <div className="p-5">
+            {/* Browse Mode */}
+            {mode === "browse" && (
+              <div className="space-y-4">
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">회의 종류</label>
+                  <div className="flex gap-2">
+                    {ctGroupOptions.map((opt) => (
+                      <button key={opt.value} onClick={() => setSelectedCtGroup(opt.value)}
+                        className={`px-4 py-2 text-sm rounded-lg border transition-colors ${selectedCtGroup === opt.value
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-stone-600 border-stone-300 hover:bg-stone-50"}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sessions List */}
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
+                    회기 선택 {loadingSessions && <span className="text-stone-400">(불러오는 중...)</span>}
+                  </label>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-stone-200 rounded-lg bg-stone-50">
+                    {sessions.length === 0 && !loadingSessions && (
+                      <p className="text-sm text-stone-400 p-2">회기 목록이 없습니다.</p>
+                    )}
+                    {sessions.map((s) => (
+                      <button key={s.csNum} onClick={() => loadDocuments(s.csNum)}
+                        className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${selectedSession === s.csNum
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-stone-600 border-stone-300 hover:bg-indigo-50"}`}>
+                        {s.csNum > 999
+                          ? `${s.csNum}년도`
+                          : `제${s.csNum}회`}
+                        <span className="ml-1 opacity-70">({s.csSdate.substring(0, 4)})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Documents List */}
+                {selectedSession !== null && (
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">
+                      회의록 목록 {loadingDocs && <span className="text-stone-400">(불러오는 중...)</span>}
+                    </label>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {documents.length === 0 && !loadingDocs && (
+                        <p className="text-sm text-stone-400 p-3 text-center">회의록이 없습니다.</p>
+                      )}
+                      {documents.map((doc) => {
+                        const label = doc.cdChasoo !== "0" ? `제${doc.cdChasoo}차` : "";
+                        const ritual = doc.cdRitual > 0 ? ` ${doc.cdRitualNm}` : "";
+                        const imsi = doc.cdImsi === "Y" ? " [임시회의록]" : "";
+                        return (
+                          <button key={doc.cdUid} onClick={() => selectDocument(doc)} disabled={fetchingDoc}
+                            className="w-full text-left px-4 py-3 border border-stone-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-colors disabled:opacity-50">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-medium text-stone-800">{doc.ctNm}</span>
+                                <span className="text-sm text-stone-600 ml-2">{label}{ritual}{imsi}</span>
+                              </div>
+                              <span className="text-xs text-stone-400">{doc.cdDate}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {fetchingDoc && (
+                  <div className="flex items-center justify-center py-4 text-sm text-indigo-600">
+                    <svg className="animate-spin w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    회의록 텍스트를 가져오는 중...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* URL Mode */}
             {mode === "url" && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-stone-700 mb-2">전자회의록 페이지 URL</label>
@@ -114,21 +296,24 @@ export default function Home() {
               </div>
             )}
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-stone-700">
-                  {mode === "url" ? "가져온 회의록 텍스트" : "회의록 텍스트"}
-                </label>
-                <span className={`text-xs ${text.length > 500 ? "text-green-600" : "text-stone-400"}`}>
-                  {text.length.toLocaleString()}자
-                </span>
+            {/* Text area (shown in paste and url modes, or after browse selection) */}
+            {(mode === "paste" || mode === "url") && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-stone-700">
+                    {mode === "url" ? "가져온 회의록 텍스트" : "회의록 텍스트"}
+                  </label>
+                  <span className={`text-xs ${text.length > 500 ? "text-green-600" : "text-stone-400"}`}>
+                    {text.length.toLocaleString()}자
+                  </span>
+                </div>
+                <textarea value={text} onChange={(e) => setText(e.target.value)} rows={12}
+                  placeholder={mode === "paste"
+                    ? "전자회의록에서 회의록 텍스트를 복사하여 붙여넣으세요.\n\n(Ctrl+A -> Ctrl+C로 전체 선택 후 복사)"
+                    : "위에서 URL을 입력하고 '텍스트 가져오기' 버튼을 누르면 여기에 텍스트가 표시됩니다."}
+                  className="w-full px-4 py-3 border border-stone-300 rounded-lg text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-stone-400 resize-y font-mono"/>
               </div>
-              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={12}
-                placeholder={mode === "paste"
-                  ? "전자회의록에서 회의록 텍스트를 복사하여 붙여넣으세요.\n\n(Ctrl+A → Ctrl+C로 전체 선택 후 복사)"
-                  : "위에서 URL을 입력하고 '텍스트 가져오기' 버튼을 누르면 여기에 텍스트가 표시됩니다."}
-                className="w-full px-4 py-3 border border-stone-300 rounded-lg text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-stone-400 resize-y font-mono"/>
-            </div>
+            )}
 
             {error && (
               <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
