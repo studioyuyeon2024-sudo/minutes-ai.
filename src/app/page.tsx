@@ -101,10 +101,11 @@ export default function Home() {
   const [searchingMember, setSearchingMember] = useState(false);
 
   const parseAttendance = (t: string): AttendanceInfo | null => {
-    const presentMatch = t.match(/○\s*출석의원\((\d+)명\)\s*([\s\S]*?)(?=○\s*불출석|$)/);
-    const absentMatch = t.match(/○\s*불출석의원\((\d+)명\)\s*([\s\S]*?)(?=○|$)/);
+    const presentMatch = t.match(/○\s*출석의원\((\d+)명\)\s*([\s\S]*?)(?=○\s*불출석)/);
+    const absentMatch = t.match(/○\s*불출석의원\((\d+)명\)\s*([\s\S]*?)(?=○|━|─|—|1\.|개의|개회|회의)/);
     if (!presentMatch && !absentMatch) return null;
-    const extractNames = (str: string) => str.trim().split(/\s+/).filter(n => n.length >= 2 && !/[○()명\d]/.test(n));
+    const isKoreanName = (s: string) => /^[가-힣]{2,4}$/.test(s);
+    const extractNames = (str: string) => str.trim().split(/\s+/).filter(isKoreanName);
     return {
       present: presentMatch ? extractNames(presentMatch[2]) : [],
       absent: absentMatch ? extractNames(absentMatch[2]) : [],
