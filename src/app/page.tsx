@@ -41,6 +41,13 @@ type DocInfo = {
   cvUid: string;
 };
 
+type AttendanceInfo = {
+  present: string[];
+  absent: string[];
+  presentCount: number;
+  absentCount: number;
+};
+
 type MemberInfo = {
   cmUid: number;
   cmNm: string;
@@ -79,6 +86,7 @@ export default function Home() {
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedCtGroup, setSelectedCtGroup] = useState("B");
   const [fetchingDoc, setFetchingDoc] = useState(false);
+  const [attendance, setAttendance] = useState<AttendanceInfo | null>(null);
 
   // Keyword search state
   const [keyword, setKeyword] = useState("");
@@ -93,6 +101,24 @@ export default function Home() {
   const [memberTotal, setMemberTotal] = useState(0);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [searchingMember, setSearchingMember] = useState(false);
+
+  const parseAttendance = (t: string): AttendanceInfo | null => {
+    const presentMatch = t.match(/○\s*출석의원\((\d+)명\)\s*([\s\S]*?)(?=○\s*불출석|$)/);
+    const absentMatch = t.match(/○\s*불출석의원\((\d+)명\)\s*([\s\S]*?)(?=○|$)/);
+    if (!presentMatch && !absentMatch) return null;
+    const extractNames = (str: string) => str.trim().split(/\s+/).filter(n => n.length >= 2 && !/[○()명\d]/.test(n));
+    return {
+      present: presentMatch ? extractNames(presentMatch[2]) : [],
+      absent: absentMatch ? extractNames(absentMatch[2]) : [],
+      presentCount: presentMatch ? parseInt(presentMatch[1]) : 0,
+      absentCount: absentMatch ? parseInt(absentMatch[1]) : 0,
+    };
+  };
+
+  useEffect(() => {
+    if (text) setAttendance(parseAttendance(text));
+    else setAttendance(null);
+  }, [text]);
 
   useEffect(() => {
     loadSessions();
@@ -544,6 +570,51 @@ export default function Home() {
                     ? "전자회의록에서 회의록 텍스트를 복사하여 붙여넣으세요.\n\n위 '회의록 검색' 탭에서 자동으로 가져올 수도 있습니다."
                     : "위에서 URL을 입력하고 '가져오기' 버튼을 누르면 여기에 텍스트가 표시됩니다."}
                   className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white placeholder:text-slate-300 resize-y font-mono transition-all"/>
+              </div>
+            )}
+
+            {/* Attendance */}
+            {attendance && (
+              <div className="mt-5 bg-white border border-slate-200/80 rounded-xl overflow-hidden animate-in">
+                <div className="px-5 py-3 bg-slate-50 border-b border-slate-200/80">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">출석 현황</h3>
+                </div>
+                <div className="p-5 space-y-4">
+                  {/* Bar */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all"
+                        style={{ width: `${attendance.presentCount / (attendance.presentCount + attendance.absentCount) * 100}%` }} />
+                    </div>
+                    <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
+                      {attendance.presentCount}/{attendance.presentCount + attendance.absentCount}명
+                    </span>
+                  </div>
+                  {/* Present */}
+                  <div>
+                    <p className="text-xs font-bold text-emerald-700 mb-2">
+                      출석 ({attendance.presentCount}명)
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {attendance.present.map((name, i) => (
+                        <span key={i} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium border border-emerald-200/60">{name}</span>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Absent */}
+                  {attendance.absent.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-red-600 mb-2">
+                        불출석 ({attendance.absentCount}명)
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {attendance.absent.map((name, i) => (
+                          <span key={i} className="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-medium border border-red-200/60">{name}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
