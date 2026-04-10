@@ -41,8 +41,28 @@ type DocInfo = {
   cvUid: string;
 };
 
+type MemberInfo = {
+  cmUid: number;
+  cmNm: string;
+  speakCnt: number;
+};
+
+type SearchResult = {
+  cdCode: string;
+  csNum: string;
+  chasu: string;
+  ctNm: string;
+  cdDate: string;
+  ciNum: string;
+  ciNm: string;
+  content: string;
+  highlighting: string;
+  daesu: string;
+};
+
 export default function Home() {
   const [mode, setMode] = useState<"browse" | "paste" | "url">("browse");
+  const [browseTab, setBrowseTab] = useState<"session" | "keyword" | "member">("session");
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,6 +71,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const resultRef = useRef<HTMLDivElement>(null);
 
+  // Session browse state
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [documents, setDocuments] = useState<DocInfo[]>([]);
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
@@ -59,9 +80,27 @@ export default function Home() {
   const [selectedCtGroup, setSelectedCtGroup] = useState("B");
   const [fetchingDoc, setFetchingDoc] = useState(false);
 
+  // Keyword search state
+  const [keyword, setKeyword] = useState("");
+  const [keywordResults, setKeywordResults] = useState<SearchResult[]>([]);
+  const [keywordTotal, setKeywordTotal] = useState({ item: 0, document: 0 });
+  const [searchingKeyword, setSearchingKeyword] = useState(false);
+
+  // Member search state
+  const [members, setMembers] = useState<MemberInfo[]>([]);
+  const [selectedMember, setSelectedMember] = useState<MemberInfo | null>(null);
+  const [memberResults, setMemberResults] = useState<SearchResult[]>([]);
+  const [memberTotal, setMemberTotal] = useState(0);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [searchingMember, setSearchingMember] = useState(false);
+
   useEffect(() => {
     loadSessions();
   }, [selectedCtGroup]);
+
+  useEffect(() => {
+    if (browseTab === "member" && members.length === 0) loadMembers();
+  }, [browseTab]);
 
   const loadSessions = async () => {
     setLoadingSessions(true);
@@ -113,6 +152,76 @@ export default function Home() {
     } finally {
       setFetchingDoc(false);
     }
+  };
+
+  // Keyword search
+  const searchByKeyword = async () => {
+    if (!keyword.trim() || keyword.trim().length < 2) {
+      setError("검색어를 2글자 이상 입력해주세요.");
+      return;
+    }
+    setSearchingKeyword(true);
+    setError("");
+    setKeywordResults([]);
+    try {
+      const res = await fetch("/api/fetch-meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "keyword-search", searchWord: keyword.trim() }),
+      });
+      const data = await res.json();
+      const items: SearchResult[] = data.itemSearchResultList || [];
+      const docs: SearchResult[] = data.conferenceSearchResultList || [];
+      setKeywordResults([...items, ...docs]);
+      setKeywordTotal({
+        item: data.itemResultModel?.documentSize || 0,
+        document: data.conferenceResultModel?.documentSize || 0,
+      });
+    } catch {
+      setError("검색 중 오류가 발생했습니다.");
+    } finally {
+      setSearchingKeyword(false);
+    }
+  };
+
+  // Member search
+  const loadMembers = async () => {
+    setLoadingMembers(true);
+    try {
+      const res = await fetch("/api/fetch-meetings?action=members&csDaesoo=12");
+      const data = await res.json();
+      if (Array.isArray(data)) setMembers(data);
+    } catch {
+      setError("의원 목록을 불러올 수 없습니다.");
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const searchByMember = async (member: MemberInfo) => {
+    setSelectedMember(member);
+    setSearchingMember(true);
+    setError("");
+    setMemberResults([]);
+    try {
+      const res = await fetch("/api/fetch-meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "member-speeches", cmUid: String(member.cmUid), csDaesoo: "12" }),
+      });
+      const data = await res.json();
+      const list: SearchResult[] = data.conferenceSearchResultList || [];
+      setMemberResults(list);
+      setMemberTotal(data.totalCnt || 0);
+    } catch {
+      setError("의원 발언 검색 중 오류가 발생했습니다.");
+    } finally {
+      setSearchingMember(false);
+    }
+  };
+
+  const openViewer = (cdCode: string, ciNum: string) => {
+    window.open(`https://r.jbstatecouncil.jeonbuk.kr/assem/viewer.do?cdCode=${cdCode}#bill${ciNum}`, "_blank");
   };
 
   const fetchFromUrl = async () => {
@@ -219,6 +328,99 @@ export default function Home() {
             {/* Browse Mode */}
             {mode === "browse" && (
               <div className="space-y-5 animate-in">
+                {/* Browse Sub-tabs */}
+                <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+                  {([["session", "회기별"], ["keyword", "키워드 검색"], ["member", "의원별"]] as const).map(([key, label]) => (
+                    <button key={key} onClick={() => setBrowseTab(key)}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${browseTab === key ? "bg-white text-blue-700 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Keyword Search */}
+                {browseTab === "keyword" && (
+                  <div className="space-y-4 animate-in">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">검색어 입력</label>
+                      <div className="flex gap-2">
+                        <input type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && searchByKeyword()}
+                          placeholder="회의록에서 찾을 키워드를 입력하세요"
+                          className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white placeholder:text-slate-300 transition-all"/>
+                        <button onClick={searchByKeyword} disabled={searchingKeyword || !keyword.trim()}
+                          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-30 transition-all whitespace-nowrap shadow-md shadow-blue-600/20">
+                          {searchingKeyword ? "검색 중..." : "검색"}
+                        </button>
+                      </div>
+                    </div>
+                    {keywordResults.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 mb-3">
+                          안건 <span className="text-blue-600">{keywordTotal.item}건</span> · 본문 <span className="text-blue-600">{keywordTotal.document}건</span> 검색됨
+                        </p>
+                        <div className="space-y-2 max-h-72 overflow-y-auto custom-scroll">
+                          {keywordResults.map((r, i) => (
+                            <button key={i} onClick={() => openViewer(r.cdCode, r.ciNum)}
+                              className="group w-full text-left px-4 py-3.5 bg-white border border-slate-200/80 rounded-xl hover:border-blue-400 hover:shadow-md hover:shadow-blue-100 transition-all duration-200">
+                              <p className="text-xs text-blue-600 font-semibold">제{r.daesu || "12"}대 제{r.csNum}회 {r.chasu} {r.ctNm}</p>
+                              <p className="text-sm font-medium text-slate-800 mt-1">{r.ciNm}</p>
+                              {r.highlighting && <p className="text-xs text-slate-400 mt-1 line-clamp-2" dangerouslySetInnerHTML={{ __html: r.highlighting }} />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Member Search */}
+                {browseTab === "member" && (
+                  <div className="space-y-4 animate-in">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                        의원 선택 (제12대)
+                        {loadingMembers && <span className="ml-2 text-blue-500 normal-case animate-pulse-soft">불러오는 중...</span>}
+                      </label>
+                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scroll p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                        {members.map((m) => (
+                          <button key={m.cmUid} onClick={() => searchByMember(m)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150
+                              ${selectedMember?.cmUid === m.cmUid
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600"}`}>
+                            {m.cmNm}
+                            {m.speakCnt > 0 && <span className="ml-1 opacity-60">({m.speakCnt})</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {selectedMember && (
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 mb-3">
+                          <span className="text-blue-600">{selectedMember.cmNm}</span> 의원 — 총 <span className="text-blue-600">{memberTotal}건</span> 발언
+                          {searchingMember && <span className="ml-2 text-blue-500 animate-pulse-soft">검색 중...</span>}
+                        </p>
+                        <div className="space-y-2 max-h-72 overflow-y-auto custom-scroll">
+                          {memberResults.map((r, i) => (
+                            <button key={i} onClick={() => openViewer(r.cdCode, r.ciNum)}
+                              className="group w-full text-left px-4 py-3.5 bg-white border border-slate-200/80 rounded-xl hover:border-blue-400 hover:shadow-md hover:shadow-blue-100 transition-all duration-200">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-blue-600 font-semibold">{r.ctNm} 제{r.csNum}회 {r.chasu}</p>
+                                <span className="text-xs text-slate-400">{r.cdDate ? `${r.cdDate.substring(0,4)}.${r.cdDate.substring(4,6)}.${r.cdDate.substring(6,8)}` : ""}</span>
+                              </div>
+                              <p className="text-sm font-medium text-slate-800 mt-1">{r.ciNm}</p>
+                              {r.content && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{r.content.substring(0, 100)}...</p>}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Session Browse (existing) */}
+                {browseTab === "session" && <>
                 {/* Category */}
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">회의 종류</label>
@@ -306,6 +508,7 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+                </>}
               </div>
             )}
 
