@@ -13,7 +13,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col" style={{ fontFamily: '-apple-system, "Pretendard", "Noto Sans KR", system-ui, sans-serif' }}>
+      <head>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+        <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
+      </head>
+      <body className="min-h-full flex flex-col" style={{ fontFamily: '"Pretendard Variable", -apple-system, "Noto Sans KR", system-ui, sans-serif' }}>
         {children}
       </body>
     </html>
